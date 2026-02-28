@@ -12,11 +12,15 @@ FetchContent_Declare(JUCE
 )
 FetchContent_MakeAvailable(JUCE)
 
+juce_add_binary_data(Wav2FlacYeah_Assets
+    SOURCES assets/GK.png
+)
+
 juce_add_gui_app(Wav2FlacYeah
-    COMPANY_NAME    "Wav2FlacYeah"
-    PRODUCT_NAME    "Wav2FlacYeah"
+    COMPANY_NAME    "GnJtZ-KonVerT"
+    PRODUCT_NAME    "GnJtZ-KonVerT"
     VERSION         "1.0.0"
-    BUNDLE_ID       "com.wav2flacyeah.app"
+    BUNDLE_ID       "com.gnjtz.konvert"
 )
 
 target_sources(Wav2FlacYeah PRIVATE
@@ -34,6 +38,7 @@ target_compile_definitions(Wav2FlacYeah PRIVATE
 )
 
 target_link_libraries(Wav2FlacYeah PRIVATE
+    Wav2FlacYeah_Assets
     juce::juce_audio_formats
     juce::juce_audio_basics
     juce::juce_events

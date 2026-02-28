@@ -1,4 +1,5 @@
 #include "ConverterComponent.h"
+#include <BinaryData.h>
 
 using namespace juce;
 
@@ -16,6 +17,9 @@ static const Colour kRed       { 0xffff5555 };
 // ─── Constructor ─────────────────────────────────────────────────────────────
 ConverterComponent::ConverterComponent()
 {
+    // Load logo from binary data
+    logo = ImageCache::getFromMemory (BinaryData::GK_png, BinaryData::GK_pngSize);
+
     // Sample rate combo
     srCombo.addItem ("Keep original", 1);
     srCombo.addItem ("44100 Hz",      2);
@@ -106,7 +110,7 @@ ConverterComponent::ConverterComponent()
     addAndMakeVisible (overallBar);
 
     updateButtons();
-    setSize (760, 560);
+    setSize (760, 580);
 }
 
 ConverterComponent::~ConverterComponent()
@@ -119,6 +123,9 @@ void ConverterComponent::resized()
 {
     auto full = getLocalBounds();
 
+    // Header bar at top (logo lives here, drawn in paint())
+    full.removeFromTop (kHeaderH);
+
     // Right panel: settings
     auto panel = full.removeFromRight (kSettingsW);
     full.removeFromRight (1); // separator
@@ -127,8 +134,8 @@ void ConverterComponent::resized()
 
     auto row = [&] (int h) { return panel.removeFromTop (h); };
 
-    // Title
-    panel.removeFromTop (26); // clear "Settings" title (32px tall) + breathing room
+    // Clear "Settings" title space
+    panel.removeFromTop (26);
 
     // Sample rate
     srLabel.setBounds (row (18));
@@ -142,7 +149,7 @@ void ConverterComponent::resized()
     bdCombo.setBounds (row (24));
     panel.removeFromTop (10);
 
-    // FLAC level
+    // Compression level
     qualLabel.setBounds (row (18));
     panel.removeFromTop (2);
     qualSlider.setBounds (row (26));
@@ -152,7 +159,6 @@ void ConverterComponent::resized()
     convertBtn.setBounds (row (28));
     panel.removeFromTop (6);
     cancelBtn.setBounds (row (28));
-    panel.removeFromTop (6);
 
     // Left: file area
     auto left = full.reduced (10, 10);
@@ -189,15 +195,36 @@ void ConverterComponent::paint (Graphics& g)
 {
     g.fillAll (kBg);
 
-    // Settings panel background
-    auto panelRect = getLocalBounds().removeFromRight (kSettingsW).toFloat();
+    // ── Header bar ──────────────────────────────────────────────────────────
+    auto headerRect = getLocalBounds().removeFromTop (kHeaderH);
+    g.setColour (kPanel);
+    g.fillRect (headerRect);
+
+    // Bottom border on header
+    g.setColour (kBorder);
+    g.fillRect (headerRect.removeFromBottom (1).toFloat());
+
+    // Logo: 300px wide, proportional height, vertically centred, 12px left margin
+    if (logo.isValid())
+    {
+        const int logoW = 300;
+        const int logoH = int (float (logoW) * float (logo.getHeight()) / float (logo.getWidth()));
+        const int logoX = 12;
+        const int logoY = (kHeaderH - logoH) / 2;
+        g.drawImage (logo, logoX, logoY, logoW, logoH,
+                     0, 0, logo.getWidth(), logo.getHeight());
+    }
+
+    // ── Settings panel background ────────────────────────────────────────────
+    auto panelRect = getLocalBounds().withTrimmedTop (kHeaderH).removeFromRight (kSettingsW).toFloat();
     g.setColour (kPanel);
     g.fillRect (panelRect);
 
     // Separator line
-    auto sep = getLocalBounds().removeFromRight (kSettingsW + 1).removeFromLeft (1).toFloat();
     g.setColour (kBorder);
-    g.fillRect (sep);
+    g.fillRect (getLocalBounds().withTrimmedTop (kHeaderH)
+                                .removeFromRight (kSettingsW + 1)
+                                .removeFromLeft (1).toFloat());
 
     // Panel title
     g.setFont (FontOptions (13.0f, Font::bold));
@@ -205,10 +232,12 @@ void ConverterComponent::paint (Graphics& g)
     g.drawText ("Settings", panelRect.removeFromTop (32).reduced (12, 6),
                 Justification::centredLeft, false);
 
-    // Drop zone highlight
+    // ── Drop zone highlight ──────────────────────────────────────────────────
     if (dragHover)
     {
-        auto zone = getLocalBounds().withTrimmedRight (kSettingsW + 1).reduced (6).toFloat();
+        auto zone = getLocalBounds().withTrimmedTop (kHeaderH)
+                                    .withTrimmedRight (kSettingsW + 1)
+                                    .reduced (6).toFloat();
         g.setColour (kAccent.withAlpha (0.15f));
         g.fillRoundedRectangle (zone, 6.0f);
         g.setColour (kAccent.withAlpha (0.8f));
@@ -219,7 +248,7 @@ void ConverterComponent::paint (Graphics& g)
         g.drawText ("Drop WAV files here", zone, Justification::centred, false);
     }
 
-    // Empty state hint
+    // ── Empty state hint ────────────────────────────────────────────────────
     if (jobs.isEmpty() && !dragHover)
     {
         auto zone = fileList.getBounds().toFloat();
@@ -270,12 +299,10 @@ void ConverterComponent::paintListBoxItem (int row, Graphics& g,
     if (row < 0 || row >= jobs.size()) return;
     const auto& job = jobs[row];
 
-    // Row background
     g.setColour (selected ? kAccent.withAlpha (0.2f)
                           : (row % 2 == 0 ? kPanel : kBg));
     g.fillRect (0, 0, width, height);
 
-    // Status colour
     Colour dot;
     String statusText;
     switch (job.status)
@@ -320,7 +347,7 @@ void ConverterComponent::addFiles (const StringArray& paths)
     }
     fileList.updateContent();
     updateButtons();
-    repaint(); // clear empty-state hint
+    repaint();
 }
 
 ConversionSettings ConverterComponent::buildSettings() const
@@ -349,7 +376,7 @@ void ConverterComponent::startConversion()
 
     perFileProg = overallProg = 0.0;
     currentJobIdx = -1;
-    statusLabel.setText ("Starting…", dontSendNotification);
+    statusLabel.setText ("Starting...", dontSendNotification);
     fileList.updateContent();
 
     convThread.setJobs (jobs, buildSettings(),
@@ -373,7 +400,6 @@ void ConverterComponent::stopConversion()
 void ConverterComponent::onProgress (int jobIdx, float fp, float op,
                                      JobStatus status, const String& errMsg)
 {
-    // jobIdx == -1 means a file-progress-only update (no status change)
     if (jobIdx >= 0 && jobIdx < jobs.size())
     {
         jobs.getReference (jobIdx).status = status;

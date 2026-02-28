@@ -72,7 +72,10 @@ private:
                              JobStatus status, const juce::String& errMsg);
     void updateButtons      ();
 
+    juce::Image logo;
+
     static constexpr int kSettingsW = 220;
+    static constexpr int kHeaderH   = 58;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ConverterComponent)
 };
