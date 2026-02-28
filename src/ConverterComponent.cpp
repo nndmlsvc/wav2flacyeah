@@ -128,7 +128,7 @@ void ConverterComponent::resized()
     auto row = [&] (int h) { return panel.removeFromTop (h); };
 
     // Title
-    panel.removeFromTop (6);
+    panel.removeFromTop (26); // clear "Settings" title (32px tall) + breathing room
 
     // Sample rate
     srLabel.setBounds (row (18));

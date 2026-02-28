@@ -33,7 +33,7 @@ private:
     juce::ComboBox srCombo;
     juce::Label    bdLabel    { {}, "Bit Depth" };
     juce::ComboBox bdCombo;
-    juce::Label    qualLabel  { {}, "FLAC Level (0–8)" };
+    juce::Label    qualLabel  { {}, "Compression Level (0-8)" };
     juce::Slider   qualSlider;
 
     // Action buttons
